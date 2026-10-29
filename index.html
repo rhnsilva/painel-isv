@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel Executivo ISV — Regional PR/SC</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- html2canvas para renderizar e baixar as Imagens -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #212529; }
+    .header-bar { background-color: #005C33; color: #ffffff; padding: 15px 20px; border-bottom: 5px solid #F37021; }
+    .kpi-card { border: none; border-radius: 10px; background: #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .kpi-title { font-size: 0.8rem; color: #6c757d; font-weight: 700; text-transform: uppercase; }
+    .kpi-value { font-size: 1.3rem; font-weight: 800; color: #005C33; }
+    .kpi-sub { font-size: 0.8rem; color: #6c757d; font-weight: 600; }
+    
+    .badge-critico { background-color: #f8d7da; color: #842029; font-weight: 700; }
+    .badge-atencao { background-color: #fff3cd; color: #664d03; font-weight: 700; }
+    .badge-bom { background-color: #d1e7dd; color: #0f5132; font-weight: 700; }
+    
+    .table-container { background: #ffffff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 20px; }
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { background-color: #004426 !important; color: #F37021 !important; }
+    .sort-icon { font-size: 0.8rem; margin-left: 5px; opacity: 0.7; }
+
+    /* Estilos do Card Executivo Regional */
+    .card-atacadao-claro { background-color: #ffffff; border: 2px solid #005C33; border-radius: 14px; padding: 25px; color: #212529; }
+    .header-card-claro { background: #005C33; color: #ffffff; padding: 15px 20px; border-radius: 8px; }
+    .header-title-claro { font-size: 1.5rem; font-weight: 900; line-height: 1.1; }
+    .header-sub-claro { color: #F37021; font-weight: 800; }
+    .box-kpi-claro { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 12px; text-align: center; }
+    .card-secao-verde { background: #005C33; color: #ffffff; font-weight: 800; padding: 8px 12px; border-radius: 6px 6px 0 0; font-size: 0.85rem; }
+    .card-secao-laranja { background: #F37021; color: #ffffff; font-weight: 800; padding: 8px 12px; border-radius: 6px 6px 0 0; font-size: 0.85rem; }
+    .tabela-card-light { background: #ffffff; font-size: 0.85rem; }
+    .sub-sku { font-size: 0.75rem; color: #6c757d; font-weight: 600; display: block; }
+    
+    /* Template Oculto para Renderizar Card Top 50 por Filial */
+    .card-filial-export { background-color: #ffffff; border: 3px solid #005C33; border-radius: 12px; padding: 20px; width: 1000px; color: #212529; margin: 0 auto; }
+    
+    .assinatura-footer { font-size: 0.8rem; color: #6c757d; font-weight: 600; text-align: center; padding: 15px 0; border-top: 1px solid #dee2e6; margin-top: 20px; }
+    .assinatura-card { font-size: 0.75rem; color: #005C33; font-weight: 700; text-align: right; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <!-- Topbar do Painel Web -->
+  <div class="header-bar d-flex justify-content-between align-items-center mb-4 shadow-sm">
+    <h4 class="m-0 fw-bold">PAINEL DE ISV — REGIONAL PR/SC</h4>
+    <div class="d-flex align-items-center gap-2">
+      <button id="btn-gerar-card" class="btn btn-warning fw-bold text-dark btn-sm px-3 shadow-sm" onclick="gerarImagemCard()">
+        📥 Baixar Card Executivo (PNG)
+      </button>
+      <button id="btn-gerar-top50-filiais" class="btn btn-light fw-bold text-success border btn-sm px-3 shadow-sm" onclick="baixarTop50TodasFiliais()">
+        📦 Baixar Top 50 Itens por Filial (Imagens)
+      </button>
+      <span class="badge bg-light text-dark fs-6 border" id="data-atualizacao">Atualizando...</span>
+    </div>
+  </div>
+
+  <div class="container-fluid px-4">
+    
+    <!-- Spinner de Carregamento -->
+    <div id="loading" class="text-center my-5">
+      <div class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;"></div>
+      <p class="mt-2 text-muted fw-bold" id="loading-msg">Carregando dados operacionais da Regional...</p>
+    </div>
+
+    <!-- Conteúdo Principal do Painel -->
+    <div id="content" class="d-none">
+      
+      <!-- Cards de KPIs Superiores -->
+      <div class="row g-3 mb-4">
+        <div class="col-md-3">
+          <div class="card kpi-card p-3">
+            <div class="kpi-title" id="lbl-kpi-ant">TOTAL ISV (-)</div>
+            <div class="kpi-value text-dark" id="kpi-total-ant">R$ 0,00</div>
+            <div class="kpi-sub" id="kpi-sku-ant">0 SKU</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card kpi-card p-3">
+            <div class="kpi-title" id="lbl-kpi-atu">TOTAL ISV (-)</div>
+            <div class="kpi-value" id="kpi-total-atu">R$ 0,00</div>
+            <div class="kpi-sub" id="kpi-sku-atu">0 SKU</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card kpi-card p-3">
+            <div class="kpi-title">VARIAÇÃO REGIONAL</div>
+            <div class="kpi-value text-danger" id="kpi-variacao">R$ 0,00</div>
+            <div class="kpi-sub text-danger" id="kpi-sku-var">0 SKU</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card kpi-card p-3">
+            <div class="kpi-title">DISTRIBUIÇÃO DE LOJAS</div>
+            <div class="d-flex justify-content-between mt-2 fs-6">
+              <span class="badge badge-critico" id="kpi-critico">0 Críticas</span>
+              <span class="badge badge-atencao" id="kpi-atencao">0 Atenção</span>
+              <span class="badge badge-bom" id="kpi-bom">0 Boas</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ESTRUTURA VISUAL DO CARD ATACADÃO REGIONAL -->
+      <div class="mb-5">
+        <div id="area-card-executivo" class="card-atacadao-claro shadow-sm">
+          <div class="header-card-claro d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <div class="header-title-claro">ATACADÃO — CARD EXECUÇÃO ISV</div>
+              <div class="header-sub-claro fs-6">REGIONAL PARANÁ + SANTA CATARINA</div>
+            </div>
+            <div class="text-end">
+              <span class="badge bg-warning text-dark fw-bold fs-6" id="card-data-badge">Data: -</span>
+              <div class="small text-white-50 mt-1">Acompanhamento Diário de Estoque</div>
+            </div>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-3">
+              <div class="box-kpi-claro">
+                <div class="small text-muted fw-bold" id="lbl-card-ant">TOTAL ISV (-)</div>
+                <div class="fw-bold fs-6 text-dark" id="card-kpi-ant">R$ 0,00</div>
+                <div class="small text-muted" id="card-sku-ant">0 SKU</div>
+              </div>
+            </div>
+            <div class="col-3">
+              <div class="box-kpi-claro">
+                <div class="small text-muted fw-bold" id="lbl-card-atu">TOTAL ISV (-)</div>
+                <div class="fw-bold fs-6 text-dark" id="card-kpi-atu">R$ 0,00</div>
+                <div class="small text-muted" id="card-sku-atu">0 SKU</div>
+              </div>
+            </div>
+            <div class="col-3">
+              <div class="box-kpi-claro">
+                <div class="small text-muted fw-bold">VARIAÇÃO DIÁRIA</div>
+                <div class="fw-bold fs-6 text-danger" id="card-kpi-var">R$ 0,00</div>
+                <div class="small text-danger" id="card-sku-var">0 SKU</div>
+              </div>
+            </div>
+            <div class="col-3">
+              <div class="box-kpi-claro">
+                <div class="small text-muted fw-bold">FAIXAS DE LOJAS</div>
+                <div class="small fw-bold text-dark mt-1" id="card-kpi-faixas">0 Críticas | 0 Atenção | 0 Boas</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <div class="card-secao-verde">TOP 10 MAIORES VALORES (MAIORES RESULTADOS)</div>
+              <table class="table table-sm table-bordered tabela-card-light m-0">
+                <thead class="table-light"><tr><th>#</th><th>Filial</th><th class="text-end" id="th-card-top10-atu1">ISV (-)</th><th class="text-end">Qtd SKU</th></tr></thead>
+                <tbody id="card-top10-maiores"></tbody>
+              </table>
+            </div>
+            <div class="col-6">
+              <div class="card-secao-laranja">TOP 10 MENORES VALORES (MENORES RESULTADOS)</div>
+              <table class="table table-sm table-bordered tabela-card-light m-0">
+                <thead class="table-light"><tr><th>#</th><th>Filial</th><th class="text-end" id="th-card-top10-atu2">ISV (-)</th><th class="text-end">Qtd SKU</th></tr></thead>
+                <tbody id="card-top10-menores"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center border-top pt-2">
+            <div class="fw-bold text-success small">
+              Atacadão — Regional Paraná e Santa Catarina | Juntos somos mais fortes!
+            </div>
+            <div class="assinatura-card">
+              Desenvolvido por Rafael Henrique Silva
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONTAINER OCULTO PARA GERAR O CARD TOP 50 POR FILIAL DA DATA ATUAL -->
+      <div style="position: absolute; left: -9999px; top: -9999px;">
+        <div id="area-card-filial" class="card-filial-export">
+          <div class="header-card-claro d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <div class="header-title-claro" id="card-filial-nome">FILIAL -</div>
+              <div class="header-sub-claro fs-6">TOP 50 ITENS COM MAIOR VALOR DE ISV</div>
+            </div>
+            <div class="text-end">
+              <span class="badge bg-warning text-dark fw-bold fs-6" id="card-filial-data">Data: -</span>
+              <div class="small text-white-50 mt-1" id="card-filial-resumo">Total: R$ 0,00 | 0 SKU</div>
+            </div>
+          </div>
+
+          <table class="table table-sm table-striped table-bordered tabela-card-light mb-3">
+            <thead class="table-dark">
+              <tr>
+                <th style="width: 5%;">#</th>
+                <th style="width: 45%;">Descrição do Item</th>
+                <th style="width: 25%;">Subgrupo</th>
+                <th style="width: 25%;" class="text-end">Vlr Estoque (R$)</th>
+              </tr>
+            </thead>
+            <tbody id="card-filial-itens-corpo"></tbody>
+          </table>
+
+          <div class="d-flex justify-content-between align-items-center border-top pt-2">
+            <div class="fw-bold text-success small">
+              Atacadão — Gestão Diária de ISV | Foco em Giro e Redução de Estoque
+            </div>
+            <div class="assinatura-card">
+              Desenvolvido por Rafael Henrique Silva
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabela Completa Interativa Web -->
+      <div class="table-container mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold text-muted m-0">RANKING REGIONAL COMPLETO POR FILIAL</h6>
+          <small class="text-muted">Clique nos cabeçalhos para ordenar</small>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle border-top">
+            <thead class="table-dark">
+              <tr>
+                <th class="sortable" onclick="ordenarTabela('index')"># <span class="sort-icon" id="icon-index">▼</span></th>
+                <th class="sortable" onclick="ordenarTabela('filial')">Filial <span class="sort-icon" id="icon-filial">↕</span></th>
+                <th class="sortable" onclick="ordenarTabela('isvAnteriorRaw')" id="th-tab-ant">ISV (-) <span class="sort-icon" id="icon-isvAnteriorRaw">↕</span></th>
+                <th class="sortable" onclick="ordenarTabela('isvAtualRaw')" id="th-tab-atu">ISV (-) <span class="sort-icon" id="icon-isvAtualRaw">↕</span></th>
+                <th class="sortable" onclick="ordenarTabela('skuAtual')" id="th-tab-sku-atu">Qtd SKU (-) <span class="sort-icon" id="icon-skuAtual">↕</span></th>
+                <th class="sortable" onclick="ordenarTabela('varR$')">Variação (R$) <span class="sort-icon" id="icon-varR$">↕</span></th>
+                <th class="sortable" onclick="ordenarTabela('varPercRaw')">Variação (%) <span class="sort-icon" id="icon-varPercRaw">↕</span></th>
+                <th class="sortable" onclick="ordenarTabela('faixaVal')">Status <span class="sort-icon" id="icon-faixaVal">↕</span></th>
+              </tr>
+            </thead>
+            <tbody id="tabela-corpo"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="assinatura-footer">
+        Desenvolvido por Rafael Henrique Silva — Regional PR/SC
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let dadosGlobais = null;
+    let colunaAtual = 'isvAtualRaw';
+    let ordemDescendente = true;
+
+    document.addEventListener("DOMContentLoaded", function() {
+      google.script.run
+        .withSuccessHandler(inicializarPainel)
+        .obterDadosPainel();
+    });
+
+    function inicializarPainel(dados) {
+      dadosGlobais = dados;
+      
+      document.getElementById("loading").classList.add("d-none");
+      document.getElementById("content").classList.remove("d-none");
+      
+      document.getElementById("data-atualizacao").innerText = "Atualizado em " + dados.dataAtualizacao;
+      
+      document.getElementById("lbl-kpi-ant").innerText = "TOTAL ISV (" + dados.rotuloDataAnterior + ")";
+      document.getElementById("lbl-kpi-atu").innerText = "TOTAL ISV (" + dados.rotuloDataAtual + ")";
+      
+      document.getElementById("lbl-card-ant").innerText = "TOTAL ISV (" + dados.rotuloDataAnterior + ")";
+      document.getElementById("lbl-card-atu").innerText = "TOTAL ISV (" + dados.rotuloDataAtual + ")";
+      document.getElementById("card-data-badge").innerText = "Data: " + dados.rotuloDataAtual + "/2026";
+      
+      document.getElementById("th-card-top10-atu1").innerText = "ISV " + dados.rotuloDataAtual;
+      document.getElementById("th-card-top10-atu2").innerText = "ISV " + dados.rotuloDataAtual;
+      
+      document.getElementById("th-tab-ant").childNodes[0].nodeValue = "ISV " + dados.rotuloDataAnterior + " ";
+      document.getElementById("th-tab-atu").childNodes[0].nodeValue = "ISV " + dados.rotuloDataAtual + " ";
+      document.getElementById("th-tab-sku-atu").childNodes[0].nodeValue = "Qtd SKU (" + dados.rotuloDataAtual + ") ";
+
+      document.getElementById("kpi-total-ant").innerText = dados.totalAnterior;
+      document.getElementById("kpi-sku-ant").innerText = dados.totalSkuAnterior.toLocaleString("pt-BR") + " SKU";
+      
+      document.getElementById("kpi-total-atu").innerText = dados.totalAtual;
+      document.getElementById("kpi-sku-atu").innerText = dados.totalSkuAtual.toLocaleString("pt-BR") + " SKU";
+      
+      document.getElementById("kpi-variacao").innerText = dados.variacao;
+      let varSku = dados.totalSkuAtual - dados.totalSkuAnterior;
+      document.getElementById("kpi-sku-var").innerText = (varSku > 0 ? "+" : "") + varSku.toLocaleString("pt-BR") + " SKU";
+      
+      document.getElementById("kpi-critico").innerText = dados.qtdCritico + " (> R$ 2M)";
+      document.getElementById("kpi-atencao").innerText = dados.qtdAtencao + " (R$ 1M-2M)";
+      document.getElementById("kpi-bom").innerText = dados.qtdBom + " (< R$ 1M)";
+
+      document.getElementById("card-kpi-ant").innerText = dados.totalAnterior;
+      document.getElementById("card-sku-ant").innerText = dados.totalSkuAnterior.toLocaleString("pt-BR") + " SKU";
+      
+      document.getElementById("card-kpi-atu").innerText = dados.totalAtual;
+      document.getElementById("card-sku-atu").innerText = dados.totalSkuAtual.toLocaleString("pt-BR") + " SKU";
+      
+      document.getElementById("card-kpi-var").innerText = dados.variacao;
+      document.getElementById("card-sku-var").innerText = (varSku > 0 ? "+" : "") + varSku.toLocaleString("pt-BR") + " SKU";
+      
+      document.getElementById("card-kpi-faixas").innerText = `${dados.qtdCritico} Críticas | ${dados.qtdAtencao} Atenção | ${dados.qtdBom} Boas`;
+
+      let top10Maiores = [...dados.relatorio].sort((a, b) => b.isvAtualRaw - a.isvAtualRaw).slice(0, 10);
+      let htmlMaiores = "";
+      top10Maiores.forEach((l, i) => {
+        htmlMaiores += `<tr><td><b>${i+1}</b></td><td>${l.filial}</td><td class="text-end fw-bold text-danger">${l.isvAtual}</td><td class="text-end text-muted font-monospace">${l.skuAtual.toLocaleString("pt-BR")} SKU</td></tr>`;
+      });
+      document.getElementById("card-top10-maiores").innerHTML = htmlMaiores;
+
+      let top10Menores = [...dados.relatorio].sort((a, b) => a.isvAtualRaw - b.isvAtualRaw).slice(0, 10);
+      let htmlMenores = "";
+      top10Menores.forEach((l, i) => {
+        htmlMenores += `<tr><td><b>${i+1}</b></td><td>${l.filial}</td><td class="text-end fw-bold text-success">${l.isvAtual}</td><td class="text-end text-muted font-monospace">${l.skuAtual.toLocaleString("pt-BR")} SKU</td></tr>`;
+      });
+      document.getElementById("card-top10-menores").innerHTML = htmlMenores;
+
+      desenharTabela();
+    }
+
+    function ordenarTabela(coluna) {
+      if (colunaAtual === coluna) {
+        ordemDescendente = !ordemDescendente;
+      } else {
+        colunaAtual = coluna;
+        ordemDescendente = true;
+      }
+
+      atualizarIconesOrdenacao();
+
+      dadosGlobais.relatorio.sort((a, b) => {
+        let valA = a[coluna];
+        let valB = b[coluna];
+
+        if (typeof valA === 'string') {
+          return ordemDescendente 
+            ? valB.localeCompare(valA, 'pt-BR') 
+            : valA.localeCompare(valB, 'pt-BR');
+        } else {
+          return ordemDescendente ? valB - valA : valA - valB;
+        }
+      });
+
+      desenharTabela();
+    }
+
+    function atualizarIconesOrdenacao() {
+      const colunas = ['index', 'filial', 'isvAnteriorRaw', 'isvAtualRaw', 'skuAtual', 'varR$', 'varPercRaw', 'faixaVal'];
+      colunas.forEach(col => {
+        const icon = document.getElementById('icon-' + col);
+        if (icon) {
+          if (col === colunaAtual) {
+            icon.innerText = ordemDescendente ? '▼' : '▲';
+            icon.style.opacity = '1';
+          } else {
+            icon.innerText = '↕';
+            icon.style.opacity = '0.4';
+          }
+        }
+      });
+    }
+
+    function desenharTabela() {
+      let htmlTabela = "";
+      dadosGlobais.relatorio.forEach((loja) => {
+        let badgeClass = loja.faixa.includes("Crítico") ? "badge-critico" : 
+                         loja.faixa.includes("Atenção") ? "badge-atencao" : "badge-bom";
+                         
+        let varColor = loja.varR$ > 0 ? "text-danger" : "text-success";
+
+        htmlTabela += `
+          <tr>
+            <td class="text-muted fs-7">${loja.index}</td>
+            <td class="fw-bold">${loja.filial}</td>
+            <td>${loja.isvAnterior}<span class="sub-sku">${loja.skuAnterior.toLocaleString("pt-BR")} SKU</span></td>
+            <td>${loja.isvAtual}<span class="sub-sku">${loja.skuAtual.toLocaleString("pt-BR")} SKU</span></td>
+            <td class="fw-bold">${loja.skuAtual.toLocaleString("pt-BR")} SKU</td>
+            <td class="${varColor}">${loja.varR$Formatted}</td>
+            <td class="${varColor}">${loja.varPerc}</td>
+            <td><span class="badge ${badgeClass} p-2">${loja.faixa}</span></td>
+          </tr>
+        `;
+      });
+
+      document.getElementById("tabela-corpo").innerHTML = htmlTabela;
+    }
+
+    function gerarImagemCard() {
+      const btn = document.getElementById("btn-gerar-card");
+      btn.disabled = true;
+      btn.innerText = "⏳ Gerando Download...";
+
+      const elemento = document.getElementById("area-card-executivo");
+      
+      html2canvas(elemento, { scale: 2, backgroundColor: "#ffffff" }).then(canvas => {
+        const imgUrl = canvas.toDataURL("image/png");
+        const linkDownload = document.createElement("a");
+        linkDownload.href = imgUrl;
+        linkDownload.download = `CARD_EXECUTION_ISV_REGIONAL_PR_SC_${dadosGlobais.rotuloDataAtual.replace('/', '-')}.png`;
+        document.body.appendChild(linkDownload);
+        linkDownload.click();
+        document.body.removeChild(linkDownload);
+        
+        btn.disabled = false;
+        btn.innerText = "📥 Baixar Card Executivo (PNG)";
+      });
+    }
+
+    // NOVA FUNCIONALIDADE: Busca e baixa a imagem com os Top 50 itens de CADA filial
+    function baixarTop50TodasFiliais() {
+      const btn = document.getElementById("btn-gerar-top50-filiais");
+      btn.disabled = true;
+      btn.innerText = "⏳ Processando Top 50 por Filial...";
+
+      google.script.run
+        .withSuccessHandler(async function(dadosFiliais) {
+          const totalLoja = Object.keys(dadosFiliais).length;
+          let cont = 0;
+
+          for (let filial in dadosFiliais) {
+            cont++;
+            btn.innerText = `⏳ Gerando Imagem (${cont}/${totalLoja}): ${filial}...`;
+
+            const info = dadosFiliais[filial];
+            document.getElementById("card-filial-nome").innerText = filial;
+            document.getElementById("card-filial-data").innerText = "Data: " + dadosGlobais.rotuloDataAtual + "/2026";
+            document.getElementById("card-filial-resumo").innerText = `Total ISV: ${info.totalISV} | ${info.totalSKU} SKU`;
+
+            let htmlItens = "";
+            info.itens.forEach((item, idx) => {
+              htmlItens += `
+                <tr>
+                  <td><b>${idx + 1}</b></td>
+                  <td>${item.descricao}</td>
+                  <td>${item.subgrupo}</td>
+                  <td class="text-end fw-bold text-danger">${item.vlrEstoque}</td>
+                </tr>
+              `;
+            });
+            document.getElementById("card-filial-itens-corpo").innerHTML = htmlItens;
+
+            // Renderiza e baixa a imagem PNG da filial
+            const elemento = document.getElementById("area-card-filial");
+            const canvas = await html2canvas(elemento, { scale: 2, backgroundColor: "#ffffff" });
+            const imgUrl = canvas.toDataURL("image/png");
+
+            const linkDownload = document.createElement("a");
+            linkDownload.href = imgUrl;
+            linkDownload.download = `TOP_50_ITENS_ISV_${filial.replace(/[^a-zA-Z0-9]/g, '_')}_${dadosGlobais.rotuloDataAtual.replace('/', '-')}.png`;
+            document.body.appendChild(linkDownload);
+            linkDownload.click();
+            document.body.removeChild(linkDownload);
+
+            // Pequena pausa entre downloads para estabilidade do navegador
+            await new Promise(r => setTimeout(r, 400));
+          }
+
+          btn.disabled = false;
+          btn.innerText = "📦 Baixar Top 50 Itens por Filial (Imagens)";
+        })
+        .obterTop50PorFilialDiaAtual();
+    }
+  </script>
+</body>
+</html>
